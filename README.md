@@ -1,6 +1,6 @@
 # MLB Baseball Analytics Dashboard 2024
 
-![Dashboard Preview](preview.png)
+![2024 MLB WAR Leaderboard - Dashboard Preview](https://quickchart.io/chart?c={type:'horizontalBar',data:{labels:['Aaron%20Judge','Bobby%20Witt%20Jr.','Shohei%20Ohtani','Juan%20Soto','Gunnar%20Henderson','Francisco%20Lindor','Elly%20De%20La%20Cruz','Jose%20Ramirez','Ketel%20Marte','Chris%20Sale','Tarik%20Skubal','Zack%20Wheeler'],datasets:[{label:'WAR%202024',data:[11.3,10.5,8.9,8.3,7.9,7.7,6.8,6.5,6.3,6.4,6.0,5.4],backgroundColor:['%2300CC96','%2300CC96','%2300CC96','%2300CC96','%2300CC96','%2300CC96','%2300CC96','%2300CC96','%2300CC96','%23636EFA','%23636EFA','%23636EFA']}]},options:{plugins:{title:{display:true,text:'2024%20MLB%20WAR%20Leaders'}},scales:{xAxes:[{ticks:{beginAtZero:true}}]}}}&backgroundColor=%23111111&width=800&height=500)
 
 A full-stack sabermetrics analytics pipeline built in Python that pulls live 2024 MLB data from FanGraphs via pybaseball, processes it into structured DataFrames, and renders **13 interactive Plotly visualizations** across pitcher, hitter, and team-level dashboards.
 
