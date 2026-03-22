@@ -17,25 +17,46 @@ st.set_page_config(
 st.title("MLB Analytics Dashboard 2024")
 st.markdown("Interactive sabermetrics dashboard built with pybaseball, Plotly, and Streamlit.")
 
-# ── Step 1: Season selector first (drives the data fetch) ────────────────────
+# ── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("Filters")
-    season  = st.selectbox("Season", options=[2024, 2023, 2022], index=0)
-    min_ip  = st.slider("Min IP (Pitchers)", min_value=10,  max_value=150, value=50,  step=5)
-    min_pa  = st.slider("Min PA (Hitters)",  min_value=50,  max_value=500, value=150, step=25)
+    season = st.selectbox("Season", options=[2024, 2023, 2022], index=0)
+    min_ip = st.slider("Min IP (Pitchers)", min_value=10, max_value=150, value=50, step=5)
+    min_pa = st.slider("Min PA (Hitters)", min_value=50, max_value=500, value=150, step=25)
 
-# ── Step 2: Load data (cached after first pull — no re-fetch on filter change) 
+# ── FIX 1: Cache data loads with fixed qual=1 so sliders don't re-fetch ──────
+# Sliders filter in-memory — they never trigger a new API call.
+# This prevents Streamlit from re-running the full script and resetting the tab.
+@st.cache_data(show_spinner=False)
+def get_pitching(season):
+    return load_pitching_stats(season, qual=1)
+
+@st.cache_data(show_spinner=False)
+def get_batting(season):
+    return load_batting_stats(season, qual=1)
+
+@st.cache_data(show_spinner=False)
+def get_team_pitching(season):
+    return load_team_pitching(season)
+
+@st.cache_data(show_spinner=False)
+def get_team_batting(season):
+    return load_team_batting(season)
+
 with st.spinner("Loading data from FanGraphs…"):
-    pitch_df_raw = load_pitching_stats(season, qual=min_ip)
-    bat_df_raw   = load_batting_stats(season, qual=min_pa)
-    team_p       = load_team_pitching(season)
-    team_b       = load_team_batting(season)
+    pitch_df_raw = get_pitching(season)
+    bat_df_raw   = get_batting(season)
+    team_p       = get_team_pitching(season)
+    team_b       = get_team_batting(season)
 
-# ── Step 3: Remaining sidebar filters built from actual loaded data ───────────
+# ── Apply IP / PA minimums in-memory (no re-fetch) ───────────────────────────
+pitch_df_raw = pitch_df_raw[pitch_df_raw["IP"] >= min_ip] if "IP" in pitch_df_raw.columns else pitch_df_raw
+bat_df_raw   = bat_df_raw[bat_df_raw["PA"] >= min_pa]     if "PA" in bat_df_raw.columns  else bat_df_raw
+
+# ── Remaining sidebar filters ─────────────────────────────────────────────────
 with st.sidebar:
     player_search = st.text_input("Player name search", placeholder="e.g. Gerrit Cole")
 
-    # Dynamic team list — derived from real data, not hardcoded
     all_teams = sorted(
         set(pitch_df_raw["Team"].dropna().tolist()) |
         set(bat_df_raw["Team"].dropna().tolist())
@@ -49,7 +70,7 @@ with st.sidebar:
         "Hitter highlight metric", options=["OPS", "wRC+", "K%", "BB%", "WAR", "AVG", "SLG"]
     )
 
-# ── Step 4: Apply filters in memory — no re-fetch triggered ──────────────────
+# ── Apply name / team filters ─────────────────────────────────────────────────
 def apply_filters(df, name_col="Name", team_col="Team"):
     if player_search:
         df = df[df[name_col].str.contains(player_search, case=False, na=False)]
@@ -60,7 +81,7 @@ def apply_filters(df, name_col="Name", team_col="Team"):
 pitch_df = apply_filters(pitch_df_raw)
 bat_df   = apply_filters(bat_df_raw)
 
-# ── Step 5: KPI strip — metric selectors now actually do something ────────────
+# ── KPI strip ─────────────────────────────────────────────────────────────────
 if not pitch_df.empty and not bat_df.empty:
     k1, k2, k3, k4 = st.columns(4)
     k1.metric("Pitchers shown", len(pitch_df))
@@ -142,14 +163,32 @@ with tab_war:
     )
 
 with tab_alerts:
-    st.subheader("ERA-FIP Regression Alert System")
-    st.markdown("Flags pitchers where |ERA − FIP| > 0.75")
+    st.subheader("🚨 ERA–FIP Regression Alert System")
+    st.markdown(
+        "Flags pitchers where **|ERA − FIP| > 0.75**. "
+        "A large gap signals the pitcher's ERA is unlikely to be sustainable."
+    )
     alerts_df = flag_regression_candidates(pitch_df, threshold=0.75)
     if alerts_df.empty:
         st.success("No regression candidates found with current filters.")
     else:
+        # ── FIX 3: Corrected color logic and labels ───────────────────────────
+        # ERA > FIP → pitcher got LUCKY (ERA looks better than underlying skills)
+        #             → ERA likely to RISE = RED warning
+        # ERA < FIP → pitcher got UNLUCKY (ERA looks worse than underlying skills)
+        #             → ERA likely to FALL = GREEN (good news for pitcher)
         def highlight_direction(row):
-            color = "#d4edda" if row["ERA_minus_FIP"] > 0 else "#f8d7da"
+            if row["ERA_minus_FIP"] > 0:
+                color = "#f8d7da"  # red — ERA > FIP, likely to regress upward
+            else:
+                color = "#d4edda"  # green — ERA < FIP, likely to improve
             return [f"background-color: {color}"] * len(row)
-        st.dataframe(alerts_df.style.apply(highlight_direction, axis=1), use_container_width=True)
-        st.markdown("**Green** = ERA > FIP: pitcher likely to improve. **Red** = ERA < FIP: pitcher likely to decline.")
+
+        st.dataframe(
+            alerts_df.style.apply(highlight_direction, axis=1),
+            use_container_width=True,
+        )
+        st.markdown(
+            "🔴 **Red** = ERA > FIP: pitcher has been **lucky** — ERA likely to **rise**. "
+            "🟢 **Green** = ERA < FIP: pitcher has been **unlucky** — ERA likely to **drop**."
+        )
