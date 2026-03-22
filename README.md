@@ -82,7 +82,7 @@ pip install pybaseball plotly pandas numpy scipy
 ```
 
 ### 3. Run the notebook
-Open `BaseballAnalyticsDashboard.ipynb` in Jupyter or Google Colab and run all cells top to bottom.
+Open `Baseball_Analytics_Dashboard.ipynb` in Jupyter or Google Colab and run all cells top to bottom.
 
 > Note: pybaseball caching is enabled by default. First run may take 30-60 seconds to pull data. Subsequent runs are fast.
 
@@ -118,7 +118,7 @@ Running Cell 6 exports three CSVs to your working directory:
 
 ```
 baseball-analytics-dashboard/
-├── BaseballAnalyticsDashboard.ipynb  # Main notebook (all 6 cells)
+├── Baseball_Analytics_Dashboard.ipynb  # Main notebook (all 6 cells)
 ├── README.md                          # This file
 ├── preview.png                        # Dashboard preview image
 ├── 2024_hitter_sabermetrics.csv       # Exported after running Cell 6
